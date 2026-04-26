@@ -59,7 +59,7 @@ class NibssService {
   constructor() {
     this.client = axios.create({
       baseURL: this.BASE_URL,
-      timeout: 30000,
+      timeout: 60000, // Increased to 60s for cold starts
       headers: {
         'Content-Type': 'application/json',
       },
@@ -111,36 +111,49 @@ class NibssService {
   }
 
   /**
-   * Fetch a fresh JWT token from NIBSS
+   * Fetch a fresh JWT token from NIBSS with retry logic
    */
-  async initializeToken(): Promise<string> {
-    try {
-      const response = await axios.post(
-        `${this.BASE_URL}/auth/token`,
-        {
-          apiKey: this.API_KEY,
-          apiSecret: this.API_SECRET,
-        },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+  async initializeToken(retries = 3): Promise<string> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await axios.post(
+          `${this.BASE_URL}/auth/token`,
+          {
+            apiKey: this.API_KEY,
+            apiSecret: this.API_SECRET,
+          },
+          { 
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 60000 
+          }
+        );
 
-      const { token } = response.data;
-      if (!token) throw new Error('No token received from NIBSS');
+        const { token } = response.data;
+        if (!token) throw new Error('No token received from NIBSS');
 
-      // Decode JWT to get expiry (exp claim)
-      const payload = JSON.parse(
-        Buffer.from(token.split('.')[1], 'base64').toString()
-      );
-      const expiresAt = payload.exp * 1000; // convert to ms
+        const payload = JSON.parse(
+          Buffer.from(token.split('.')[1], 'base64').toString()
+        );
+        const expiresAt = payload.exp * 1000;
 
-      this.tokenData = { token, expiresAt };
-      logger.info(`✅ NIBSS token refreshed. Expires at: ${new Date(expiresAt).toISOString()}`);
+        this.tokenData = { token, expiresAt };
+        logger.info(`✅ NIBSS token refreshed. Expires at: ${new Date(expiresAt).toISOString()}`);
 
-      return token;
-    } catch (error: any) {
-      logger.error('❌ Failed to get NIBSS token:', error.message);
-      throw new Error(`NIBSS authentication failed: ${error.message}`);
+        return token;
+      } catch (error: any) {
+        const isLastRetry = i === retries - 1;
+        const delay = (i + 1) * 2000; // 2s, 4s, 6s
+        
+        logger.warn(`⚠️ NIBSS Auth attempt ${i + 1} failed: ${error.message}. ${isLastRetry ? 'Giving up.' : `Retrying in ${delay}ms...`}`);
+        
+        if (isLastRetry) {
+          throw new Error(`NIBSS authentication failed after ${retries} attempts: ${error.message}`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+    throw new Error('NIBSS authentication failed');
   }
 
   /**

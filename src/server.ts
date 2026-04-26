@@ -11,9 +11,13 @@ async function startServer() {
     await connectDB();
     logger.info('✅ MongoDB connected successfully');
 
-    // Initialize NIBSS token
-    await nibssService.initializeToken();
-    logger.info('✅ NIBSS authentication token initialized');
+    // Initialize NIBSS token (Lazy init — don't crash if it fails now)
+    try {
+      await nibssService.initializeToken();
+      logger.info('✅ NIBSS authentication token initialized');
+    } catch (error) {
+      logger.error('⚠️ NIBSS Auth failed at startup, but server will continue. It will retry on the first request.');
+    }
 
     // Start server
     app.listen(PORT, () => {
