@@ -20,6 +20,7 @@ export interface ITransaction extends Document {
   balanceBefore?: number;
   balanceAfter?: number;
   recipientName?: string;
+  senderName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +89,9 @@ const TransactionSchema = new Schema<ITransaction>(
       type: Number,
     },
     recipientName: {
+      type: String,
+    },
+    senderName: {
       type: String,
     },
   },

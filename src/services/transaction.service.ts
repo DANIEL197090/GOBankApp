@@ -129,8 +129,33 @@ export const transferFunds = async (
       balanceAfter: newBalance,
     });
 
-    // Update local balance
+    // Update total sender balance
     await Customer.findByIdAndUpdate(customerId, { balance: newBalance });
+
+    // NEW: Record Credit for recipient if they are in our system
+    const recipient = await Customer.findOne({ accountNumber: toAccount });
+    if (recipient) {
+      await Transaction.create({
+        reference: `CR_${reference}`,
+        customerId: recipient._id,
+        type: 'credit',
+        transferType,
+        amount,
+        fromAccount,
+        toAccount,
+        fromBank: sender.bankCode,
+        toBank: bankCode || sender.bankCode,
+        narration: narration || `Credit from ${sender.firstName} ${sender.lastName}`,
+        status: 'successful',
+        balanceAfter: (recipient.balance || 0) + amount,
+        senderName: `${sender.firstName} ${sender.lastName}`,
+      });
+      
+      // Update recipient's cached balance
+      await Customer.findByIdAndUpdate(recipient._id, { 
+        $inc: { balance: amount } 
+      });
+    }
 
     logger.info(`✅ Transfer successful: ${reference}`);
 
@@ -184,9 +209,9 @@ export const getTransactionHistory = async (
   const skip = (page - 1) * limit;
 
   // Filter ONLY by this customer's ID – data isolation
+  // Filter: Show where customer is either sender (debit) or receiver (credit)
   const filter: any = {
     customerId: customer._id,
-    fromAccount: customer.accountNumber,
   };
 
   if (options.status) filter.status = options.status;
