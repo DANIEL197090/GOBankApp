@@ -229,7 +229,9 @@ class NibssService {
       logger.info(`🔍 Validating ${kycType} via NIBSS: ${kycID}`);
       const data = await this.makeRequest('POST', endpoint, payload);
       
-      const isSuccess = data.success === true || data.bvn === kycID || data.nin === kycID;
+      // Strict success check: Must have success: true in the response
+      const isSuccess = data.success === true;
+      
       if (isSuccess) {
         logger.info(`✅ NIBSS validated ${kycType} successfully`);
         return true;
