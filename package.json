@@ -15,7 +15,13 @@
     "type": "git",
     "url": "git+https://github.com/DANIEL197090/GOBankApp.git"
   },
-  "keywords": ["banking", "fintech", "nibss", "nodejs", "typescript"],
+  "keywords": [
+    "banking",
+    "fintech",
+    "nibss",
+    "nodejs",
+    "typescript"
+  ],
   "author": "GOBank Team",
   "license": "ISC",
   "type": "commonjs",
@@ -50,4 +56,3 @@
     "typescript": "^6.0.3"
   }
 }
-
